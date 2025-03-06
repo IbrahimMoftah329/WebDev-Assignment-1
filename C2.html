@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Calculator</title>
+        <style>
+            /* Styling for buttons */
+            .button {
+                width: 80px;
+                height: 40px;
+                background-color: #6969b3;
+                border: 0px;
+                color: #ffffffca;
+                border-radius: 6px;
+                box-shadow: 3px 5px 5px black;
+            }
+        
+            /* Button hover effect */
+            button:hover {
+                background-color: #98c1d9;
+            }
+        
+            /* Button active (pressed) effect */
+            button:active {
+                box-shadow: 2px 4px 4px black;
+            }
+        
+            /* Flex container for buttons */
+            .flexContainer {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: space-evenly;
+                align-items: baseline;
+                width: 390px;
+                row-gap: 8px;
+            }
+        
+            /* Display container styling */
+            .displayContainer {
+                display: flex;
+                justify-content: flex-end;
+                width: 390px;
+            }
+        
+            /* Styling for display text */
+            #display {
+                margin-right: 20px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <h1>Calculator</h1>
+        <div class="displayContainer">
+            <span id="display"></span> <!-- Output display -->
+        </div>
+
+        <!-- Calculator Buttons -->
+        <div class="flexContainer">
+            <button class="button parenthesis">(</button>
+            <button class="button parenthesis">)</button>
+            <!-- New Delete Buttons -->
+            <button class="button delete">⌫</button>
+            <button class="button operator">/</button>
+            
+            <button class="button number">7</button>
+            <button class="button number">8</button>
+            <button class="button number">9</button>
+            <button class="button operator">*</button>
+            
+            <button class="button number">4</button>
+            <button class="button number">5</button>
+            <button class="button number">6</button>
+            <button class="button operator">-</button>
+          
+            <button class="button number">1</button>
+            <button class="button number">2</button>
+            <button class="button number">3</button>
+            <button class="button operator">+</button>
+            
+            <!-- New Clear Button -->
+            <button class="button clear">C</button>
+            <button class="button number">0</button>
+            <button class="button decimal">.</button>
+            <button class="button equals">=</button>
+        </div>
+
+        <!-- JavaScript for calculator -->
+        <script>
+            // Select elements for event listeners
+            const numbersArr = Array.from(document.getElementsByClassName("number"));
+            const operatorsArr = Array.from(document.getElementsByClassName("operator"));
+            const parenthesisArr = Array.from(document.getElementsByClassName("parenthesis"));
+            const equalsBtn = document.querySelector(".equals");
+            const clearBtn = document.querySelector(".clear");
+            const deleteBtn = document.querySelector(".delete");
+            const decimalBtn = document.querySelector(".decimal");
+
+            // Allowed number characters
+            const numberStrs = "0123456789".split("");
+            
+            // Object to handle calculator operations
+            const data = {
+                displayString: "0", // Initial display value
+
+                // Handles number and decimal input
+                appendStringNum: (newChar) => {
+
+                    const lastChar = data.displayString.slice(-1);
+                    const lastNumber = data.displayString.split(/[\+\-\*\/\(\)]/).pop();
+                    
+                    console.log("Last Character:", lastChar);
+                    console.log("Last Number:", lastNumber);
+
+                    // Handle decimal input
+                    if (newChar === ".") {
+                        if (lastNumber.includes(".")) {
+                            return; // Prevent multiple decimals in a single number
+                        }
+                        if (lastNumber === "" || isNaN(lastChar)) {
+                            data.displayString += "0"; // Add leading zero if decimal starts a number
+                        }
+                    }
+
+                    // Append numbers and decimal
+                    if (numberStrs.includes(newChar) || newChar === ".") {
+                        if (data.displayString === "0" && newChar !== ".") {
+                            data.displayString = ""; // Remove initial zero when typing a number
+                        }
+                        data.displayString += newChar;
+                    }
+
+                    data.updateDisplay();
+                },
+            
+                // Handles operator input
+                appendStringOperator: (newChar) => {
+                    if (numberStrs.includes(data.displayString.slice(-1)) || data.displayString.slice(-1) === ")") {
+                        data.displayString += newChar;
+                    }
+                    data.updateDisplay();
+                },
+            
+                // Handles parenthesis input
+                appendStringParenthesis: (newChar) => {
+                    const lastChar = data.displayString.slice(-1);
+                    const openCount = (data.displayString.match(/\(/g) || []).length;
+                    const closeCount = (data.displayString.match(/\)/g) || []).length;
+
+                    if (newChar === "(") {
+                        if (numberStrs.includes(lastChar) || lastChar === ")") {
+                            data.displayString += "*"; // Implicit multiplication
+                        }
+                        data.displayString += newChar;
+                    } else if (newChar === ")") {
+                        if (closeCount >= openCount) return; // Prevent extra closing parenthesis
+                        if (!numberStrs.includes(lastChar) && lastChar !== ")") return; // Prevent invalid sequences
+
+                        data.displayString += newChar;
+                    }
+
+                    data.updateDisplay();
+                },
+            
+                // Updates the display
+                updateDisplay: () => {
+                    document.getElementById("display").innerText = data.displayString;
+                },
+            };
+        
+            // Set initial display
+            document.getElementById("display").innerText = data.displayString;
+        
+            // Event listeners for numbers, operators, parenthesis, and decimal
+            numbersArr.forEach((elem) => {
+                elem.addEventListener("click", () => {
+                    data.appendStringNum(elem.innerText);
+                });
+            });
+
+            operatorsArr.forEach((elem) => {
+                elem.addEventListener("click", () => {
+                    data.appendStringOperator(elem.innerText);
+                });
+            });
+
+            parenthesisArr.forEach((elem) => {
+                elem.addEventListener("click", () => {
+                    data.appendStringParenthesis(elem.innerText);
+                });
+            });
+
+            decimalBtn.addEventListener("click", () => {
+                data.appendStringNum(".");
+            });
+        
+            // Expression evaluation using Expression Tree
+            const precedence = { "+": 1, "-": 1, "*": 2, "/": 2 };
+        
+            function infixToPostfix(expression) {
+                let output = [];
+                let operators = [];
+                let tokens = expression.match(/(\d+(\.\d+)?|[+\-*/()])/g); // Tokenize input
+            
+                tokens.forEach((token) => {
+                    if (!isNaN(token)) {
+                        output.push(token); // Number → add to output
+                    } else if (token === "(") {
+                        operators.push(token); // Open parenthesis → push to stack
+                    } else if (token === ")") {
+                        // Pop from stack to output until matching '('
+                        while (operators.length > 0 && operators[operators.length - 1] !== "(") {
+                            output.push(operators.pop());
+                        }
+                        operators.pop(); // Remove '(' from stack
+                    } else {
+                        // Handle operators based on precedence
+                        while (
+                            operators.length > 0 &&
+                            precedence[token] <= precedence[operators[operators.length - 1]]
+                        ) {
+                            output.push(operators.pop());
+                        }
+                        operators.push(token);
+                    }
+                });
+            
+                // Pop remaining operators
+                while (operators.length > 0) {
+                    output.push(operators.pop());
+                }
+            
+                return output;
+            }
+        
+            class Node {
+                constructor(value) {
+                    this.value = value;
+                    this.left = null;
+                    this.right = null;
+                }
+            }
+        
+            function buildExpressionTree(postfix) {
+                let stack = [];
+                postfix.forEach((token) => {
+                    let node = new Node(token);
+                    if (!isNaN(token)) {
+                        stack.push(node); // Number → push to stack
+                    } else {
+                        // Operator → pop last two nodes, set as children
+                        node.right = stack.pop();
+                        node.left = stack.pop();
+                        stack.push(node);
+                    }
+                });
+
+                return stack.pop(); // Root of the expression tree
+            }
+        
+            function evaluateExpressionTree(root) {
+                if (!isNaN(root.value)) {
+                    return parseFloat(root.value); // Return number value
+                }
+            
+                let leftVal = evaluateExpressionTree(root.left);
+                let rightVal = evaluateExpressionTree(root.right);
+            
+                // Perform arithmetic operation
+                switch (root.value) {
+                    case "+": return leftVal + rightVal;
+                    case "-": return leftVal - rightVal;
+                    case "*": return leftVal * rightVal;
+                    case "/": return leftVal / rightVal;
+                }
+            }
+        
+            function calculate() {
+                try {
+                    let expression = data.displayString;
+                    let postfix = infixToPostfix(expression);  // Convert to postfix notation
+                    let tree = buildExpressionTree(postfix);  // Build the expression tree
+                    let result = evaluateExpressionTree(tree);  // Evaluate the expression tree
+
+                    // Store result as new display value
+                    data.displayString = result.toString();
+                    data.updateDisplay();
+                } catch (error) {
+                    data.displayString = "Error";  // Handle errors (e.g., invalid expressions)
+                    data.updateDisplay();
+                }
+            }
+
+            // Clear entire display
+            clearBtn.addEventListener("click", () => {
+                data.displayString = "0";
+                data.updateDisplay();
+            });
+
+            // Delete last character
+            deleteBtn.addEventListener("click", () => {
+                if (data.displayString.length > 1) {
+                    data.displayString = data.displayString.slice(0, -1);
+                } else {
+                    data.displayString = "0";
+                }
+                data.updateDisplay();
+            });
+        
+            // Evaluate the expression when "=" is pressed
+            equalsBtn.addEventListener("click", calculate);
+        </script>
+    </body>
+</html>
